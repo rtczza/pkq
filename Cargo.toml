@@ -47,7 +47,7 @@ filetime = "0.2"
 dirs = "5"
 
 # Error handling
-thiserror = "1"
+thiserror = "2"
 
 # Regex
 regex = "1"

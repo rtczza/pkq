@@ -781,7 +781,7 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.20",
  "tracing",
  "tracing-subscriber",
  "unicode-width",
