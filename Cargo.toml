@@ -56,7 +56,7 @@ regex = "1"
 colored = "2"
 
 # Unicode width for CJK alignment
-unicode-width = "0.1"
+unicode-width = "0.2"
 
 # libc for signal handling
 libc = "0.2"
