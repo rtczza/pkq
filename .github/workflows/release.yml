@@ -23,7 +23,7 @@ jobs:
           - target: aarch64-unknown-linux-gnu
             zigbuild: --target aarch64-unknown-linux-gnu.2.17
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
