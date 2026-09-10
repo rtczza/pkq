@@ -1,0 +1,90 @@
+[package]
+name = "pkq"
+version = "0.2.0"
+edition = "2021"
+rust-version = "1.89"
+description = "Unified package query CLI for DEB/RPM Linux distros (dpkg/apt, rpm/dnf)"
+license = "Apache-2.0"
+authors = ["rtczza<rtczza@163.com>"]
+repository = "https://github.com/rtczza/pkq"
+categories = ["command-line-utilities", "os::linux-apis"]
+keywords = ["package-manager", "rpm", "deb", "cli", "linux"]
+# 缩减 crates.io 包体积：安装脚本与双端 shell 测试矩阵不随包分发
+exclude = ["/install.sh", "/tests/test_deb_all_cases.sh", "/tests/test_rpm_all_cases.sh"]
+
+[features]
+default = []
+# 模糊测试入口（报告 H3）：仓库元数据与 rpmdb 均为外部输入，启发式解析器是
+# 最大攻击面。该 feature 仅暴露内部解析器的稳定入口给 cargo-fuzz，
+# 默认构建不受影响。
+fuzzing = []
+
+[dependencies]
+# HTTP client
+ureq = { version = "2", features = ["tls"] }
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# SQLite (RPM local db)
+rusqlite = { version = "0.31", features = ["bundled"] }
+
+# XML parsing (RPM repomd)
+quick-xml = "0.41"
+
+# Compression
+flate2 = "1"
+lz4_flex = "0.11"
+
+# File metadata
+filetime = "0.2"
+
+# Directory paths
+dirs = "5"
+
+# Error handling
+thiserror = "1"
+
+# Regex
+regex = "1"
+
+# Color output
+colored = "2"
+
+# Unicode width for CJK alignment
+unicode-width = "0.1"
+
+# libc for signal handling
+libc = "0.2"
+
+# Binary serialization for cache
+postcard = { version = "1", features = ["use-std"] }
+
+# Parallel processing
+rayon = "1"
+
+# Memory-mapped file I/O
+memmap2 = "0.9"
+
+# Fast substring search
+memchr = "2"
+
+# Structured logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std"] }
+
+[dev-dependencies]
+# 基准测试框架。关闭默认 features（plotters/html_reports）以最小化依赖体积，
+# 仅保留 `cargo bench` 支持（cargo_bench_support）。
+criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
+
+[[bench]]
+name = "pkq_benches"
+harness = false
+
+[profile.release]
+opt-level = 3
