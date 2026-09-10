@@ -38,7 +38,7 @@ quick-xml = "0.41"
 
 # Compression
 flate2 = "1"
-lz4_flex = "0.11"
+lz4_flex = "0.14"
 
 # File metadata
 filetime = "0.2"
