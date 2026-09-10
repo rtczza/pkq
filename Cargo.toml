@@ -53,7 +53,7 @@ thiserror = "1"
 regex = "1"
 
 # Color output
-colored = "2"
+colored = "3"
 
 # Unicode width for CJK alignment
 unicode-width = "0.1"
