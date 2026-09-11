@@ -177,3 +177,70 @@ fn exit_status_equality() {
     assert_eq!(ExitStatus::Hit, ExitStatus::Hit);
     assert_ne!(ExitStatus::Hit, ExitStatus::NotFound);
 }
+
+// ---------------------------------------------------------------------------
+// cache：损坏恢复
+// ---------------------------------------------------------------------------
+
+#[test]
+fn cache_load_rejects_corrupted_data() {
+    use pkq::cache::PkgIndexCache;
+    use std::io::Write;
+
+    let dir = std::env::temp_dir().join("pkq_test_corrupt_cache");
+    std::fs::create_dir_all(&dir).ok();
+    let path = dir.join("corrupt.bin");
+
+    // 写入损坏数据（非 PKQ1 魔数）
+    let mut f = std::fs::File::create(&path).unwrap();
+    f.write_all(b"CORRUPT_DATA_HERE").unwrap();
+    drop(f);
+
+    // 应返回 None（损坏缓存被拒绝）
+    let result = PkgIndexCache::load(&path, 0, false, &[]);
+    assert!(result.is_none(), "corrupted cache should be rejected");
+
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn cache_load_rejects_empty_packages() {
+    use pkq::cache::PkgIndexCache;
+
+    let dir = std::env::temp_dir().join("pkq_test_empty_cache");
+    std::fs::create_dir_all(&dir).ok();
+    let path = dir.join("empty.bin");
+
+    // 保存空包列表
+    PkgIndexCache::save(&path, vec![]).unwrap();
+
+    // 应返回 None（空包列表被视为损坏）
+    let result = PkgIndexCache::load(&path, 0, false, &[]);
+    assert!(result.is_none(), "empty packages should be rejected");
+
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn cache_save_and_load_roundtrip() {
+    use pkq::cache::PkgIndexCache;
+
+    let dir = std::env::temp_dir().join("pkq_test_cache_roundtrip");
+    std::fs::create_dir_all(&dir).ok();
+    let path = dir.join("roundtrip.bin");
+
+    let packages = vec![PkgMetadata {
+        name: "test-pkg".into(),
+        version: "1.0.0".into(),
+        ..Default::default()
+    }];
+
+    // 保存并加载
+    PkgIndexCache::save(&path, packages.clone()).unwrap();
+    let loaded = PkgIndexCache::load(&path, 0, false, &[]).unwrap();
+
+    assert_eq!(loaded.packages.len(), 1);
+    assert_eq!(loaded.packages[0].name, "test-pkg");
+
+    std::fs::remove_dir_all(&dir).ok();
+}

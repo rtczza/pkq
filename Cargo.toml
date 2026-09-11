@@ -7,6 +7,9 @@ description = "Unified package query CLI for DEB/RPM Linux distros (dpkg/apt, rp
 license = "Apache-2.0"
 authors = ["rtczza<rtczza@163.com>"]
 repository = "https://github.com/rtczza/pkq"
+homepage = "https://github.com/rtczza/pkq"
+documentation = "https://docs.rs/pkq"
+readme = "README.md"
 categories = ["command-line-utilities", "os::linux-apis"]
 keywords = ["package-manager", "rpm", "deb", "cli", "linux"]
 # 缩减 crates.io 包体积：安装脚本与双端 shell 测试矩阵不随包分发
@@ -72,6 +75,9 @@ memmap2 = "0.9"
 
 # Fast substring search
 memchr = "2"
+
+# Base64 encoding (replace manual implementation)
+base64 = "0.22"
 
 # Structured logging
 tracing = "0.1"

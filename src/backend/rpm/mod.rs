@@ -271,7 +271,9 @@ impl RpmBackend {
                 return RpmFileIndex::empty();
             }
             if let Some(parent) = cache_path.parent() {
-                std::fs::create_dir_all(parent).ok();
+                if let Err(e) = std::fs::create_dir_all(parent) {
+                    tracing::warn!("Failed to create cache dir {:?}: {}", parent, e);
+                }
             }
             let tmp = cache_path.with_extension("tmp");
             if std::fs::write(&tmp, &buf).is_ok() {

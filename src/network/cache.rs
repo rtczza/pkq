@@ -65,12 +65,16 @@ impl NetworkCacheManager {
             .unwrap_or_else(|| PathBuf::from("/tmp"))
             .join("pkq")
             .join("repos");
-        std::fs::create_dir_all(&cache_dir).ok();
+        if let Err(e) = std::fs::create_dir_all(&cache_dir) {
+            tracing::warn!("Failed to create cache dir {:?}: {}", cache_dir, e);
+        }
         Self { cache_dir }
     }
 
     pub fn with_cache_dir(cache_dir: PathBuf) -> Self {
-        std::fs::create_dir_all(&cache_dir).ok();
+        if let Err(e) = std::fs::create_dir_all(&cache_dir) {
+            tracing::warn!("Failed to create cache dir {:?}: {}", cache_dir, e);
+        }
         Self { cache_dir }
     }
 
@@ -90,7 +94,9 @@ impl NetworkCacheManager {
         } = req;
 
         let repo_dir = self.cache_dir.join(repo_id);
-        std::fs::create_dir_all(&repo_dir).ok();
+        if let Err(e) = std::fs::create_dir_all(&repo_dir) {
+            tracing::warn!("Failed to create repo dir {:?}: {}", repo_dir, e);
+        }
 
         let local_path = repo_dir.join(sanitize_filename(url));
         let meta_path = local_path.with_extension("meta.json");
@@ -243,34 +249,8 @@ fn sanitize_filename(url: &str) -> String {
 }
 
 fn base64_encode(input: &str) -> String {
-    const CHARS: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let bytes = input.as_bytes();
-    let mut result = String::new();
-
-    for chunk in bytes.chunks(3) {
-        let b0 = chunk[0] as u32;
-        let b1 = if chunk.len() > 1 { chunk[1] as u32 } else { 0 };
-        let b2 = if chunk.len() > 2 { chunk[2] as u32 } else { 0 };
-
-        let n = (b0 << 16) | (b1 << 8) | b2;
-
-        result.push(CHARS[((n >> 18) & 63) as usize] as char);
-        result.push(CHARS[((n >> 12) & 63) as usize] as char);
-
-        if chunk.len() > 1 {
-            result.push(CHARS[((n >> 6) & 63) as usize] as char);
-        } else {
-            result.push('=');
-        }
-
-        if chunk.len() > 2 {
-            result.push(CHARS[(n & 63) as usize] as char);
-        } else {
-            result.push('=');
-        }
-    }
-
-    result
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD.encode(input.as_bytes())
 }
 
 #[cfg(test)]
@@ -324,5 +304,19 @@ mod tests {
             "http://repo.example.com/x",
             false
         ));
+    }
+
+    #[test]
+    fn test_base64_encode() {
+        // RFC 4648 测试向量
+        assert_eq!(base64_encode(""), "");
+        assert_eq!(base64_encode("f"), "Zg==");
+        assert_eq!(base64_encode("fo"), "Zm8=");
+        assert_eq!(base64_encode("foo"), "Zm9v");
+        assert_eq!(base64_encode("foob"), "Zm9vYg==");
+        assert_eq!(base64_encode("fooba"), "Zm9vYmE=");
+        assert_eq!(base64_encode("foobar"), "Zm9vYmFy");
+        // Basic Auth 典型用例
+        assert_eq!(base64_encode("user:password"), "dXNlcjpwYXNzd29yZA==");
     }
 }

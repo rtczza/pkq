@@ -18,7 +18,9 @@ fn cache_dir() -> PathBuf {
     let dir = dirs::cache_dir()
         .unwrap_or_else(|| PathBuf::from("/tmp"))
         .join("pkq");
-    std::fs::create_dir_all(&dir).ok();
+    if let Err(e) = std::fs::create_dir_all(&dir) {
+        tracing::warn!("Failed to create cache dir {:?}: {}", dir, e);
+    }
     dir
 }
 

@@ -149,7 +149,7 @@ pub fn load_dnf_vars() -> std::collections::HashMap<String, String> {
     vars
 }
 
-/// dnf.conf [main] 段的 releasever= 取值
+/// dnf.conf `[main]` 段的 releasever= 取值
 pub fn releasever_from_conf(conf: &str) -> Option<String> {
     let mut in_main = false;
     for line in conf.lines() {

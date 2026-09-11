@@ -74,9 +74,9 @@ pkq cache clean [target]   # 清理：all | index | repos | contents
 
 ## 文档
 
-**中文**：[命令参考](docs/zh_CN/命令参考.md) · [用户手册](docs/zh_CN/用户手册.md) · [概要设计](docs/zh_CN/概要设计文档.md) · [详细设计](docs/zh_CN/详细设计文档.md)
+**中文**：[命令参考](docs/zh_CN/命令参考.md) · [用户手册](docs/zh_CN/用户手册.md)
 
-**English**: [Command Reference](docs/en/Command-Reference.md) · [User Manual](docs/en/User-Manual.md) · [Design Overview](docs/en/Design-Overview.md) · [Design Detail](docs/en/Design-Detail.md)
+**English**: [Command Reference](docs/en/Command-Reference.md) · [User Manual](docs/en/User-Manual.md)
 
 ## License
 
