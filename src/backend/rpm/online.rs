@@ -159,47 +159,41 @@ fn parse_repomd_data(repomd_xml: &str, data_type: &str) -> Option<(String, i64)>
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(quick_xml::events::Event::Start(e)) => {
-                if e.name().as_ref() == b"data" {
+                if e.name().as_ref() == "data" {
                     for attr in e.attributes().flatten() {
-                        if attr.key.as_ref() == b"type" {
-                            current_type = String::from_utf8_lossy(attr.value.as_ref()).to_string();
+                        if attr.key.as_ref() == "type" {
+                            current_type = attr.value.to_string();
                         }
                     }
                     in_target_data = current_type == data_type;
-                } else if in_target_data && e.name().as_ref() == b"location" {
+                } else if in_target_data && e.name().as_ref() == "location" {
                     for attr in e.attributes().flatten() {
-                        if attr.key.as_ref() == b"href" {
-                            location =
-                                Some(String::from_utf8_lossy(attr.value.as_ref()).to_string());
+                        if attr.key.as_ref() == "href" {
+                            location = Some(attr.value.to_string());
                         }
                     }
-                } else if in_target_data && e.name().as_ref() == b"timestamp" {
+                } else if in_target_data && e.name().as_ref() == "timestamp" {
                     in_timestamp = true;
                 }
             }
             Ok(quick_xml::events::Event::Empty(e)) => {
-                if in_target_data && e.name().as_ref() == b"location" {
+                if in_target_data && e.name().as_ref() == "location" {
                     for attr in e.attributes().flatten() {
-                        if attr.key.as_ref() == b"href" {
-                            location =
-                                Some(String::from_utf8_lossy(attr.value.as_ref()).to_string());
+                        if attr.key.as_ref() == "href" {
+                            location = Some(attr.value.to_string());
                         }
                     }
                 }
             }
             Ok(quick_xml::events::Event::Text(t)) => {
                 if in_timestamp {
-                    timestamp = t
-                        .decode()
-                        .ok()
-                        .and_then(|s| s.trim().parse().ok())
-                        .unwrap_or(0);
+                    timestamp = t.xml10_content().trim().parse().unwrap_or(0);
                 }
             }
             Ok(quick_xml::events::Event::End(e)) => {
-                if e.name().as_ref() == b"timestamp" {
+                if e.name().as_ref() == "timestamp" {
                     in_timestamp = false;
-                } else if e.name().as_ref() == b"data" {
+                } else if e.name().as_ref() == "data" {
                     if in_target_data {
                         if let Some(loc) = location {
                             return Some((loc, timestamp));
@@ -245,8 +239,8 @@ fn parse_primary_xml_stream<R: std::io::BufRead>(reader: R) -> Result<Vec<PkgMet
             Ok(quick_xml::events::Event::Start(e)) => {
                 let name = e.name();
                 let ln = name.local_name();
-                let local = String::from_utf8_lossy(ln.as_ref());
-                match local.as_ref() {
+                let local = ln.as_ref();
+                match local {
                     "package" => {
                         current_pkg = Some(PkgMetadata::default());
                     }
@@ -259,11 +253,11 @@ fn parse_primary_xml_stream<R: std::io::BufRead>(reader: R) -> Result<Vec<PkgMet
                                 .attributes()
                                 .find(|a| {
                                     a.as_ref()
-                                        .map(|a| a.key.as_ref() == b"name")
+                                        .map(|a| a.key.as_ref() == "name")
                                         .unwrap_or(false)
                                 })
                                 .and_then(|a| a.ok())
-                                .map(|a| String::from_utf8_lossy(a.value.as_ref()).to_string());
+                                .map(|a| a.value.to_string());
                             if let Some(en) = entry_name {
                                 match in_rpm_section.as_deref() {
                                     Some("provides") => pkg.provides.push(en),
@@ -315,18 +309,18 @@ fn parse_primary_xml_stream<R: std::io::BufRead>(reader: R) -> Result<Vec<PkgMet
             Ok(quick_xml::events::Event::Empty(e)) => {
                 let name = e.name();
                 let ln = name.local_name();
-                let local = String::from_utf8_lossy(ln.as_ref());
+                let local = ln.as_ref();
                 if in_format && local == "entry" {
                     if let Some(pkg) = &mut current_pkg {
                         let entry_name = e
                             .attributes()
                             .find(|a| {
                                 a.as_ref()
-                                    .map(|a| a.key.as_ref() == b"name")
+                                    .map(|a| a.key.as_ref() == "name")
                                     .unwrap_or(false)
                             })
                             .and_then(|a| a.ok())
-                            .map(|a| String::from_utf8_lossy(a.value.as_ref()).to_string());
+                            .map(|a| a.value.to_string());
                         if let Some(en) = entry_name {
                             match in_rpm_section.as_deref() {
                                 Some("provides") => pkg.provides.push(en),
@@ -361,36 +355,28 @@ fn parse_primary_xml_stream<R: std::io::BufRead>(reader: R) -> Result<Vec<PkgMet
                     }
                 } else if let Some(pkg) = &mut current_pkg {
                     let local_name = name.local_name();
-                    let local = String::from_utf8_lossy(local_name.as_ref());
-                    match local.as_ref() {
+                    let local = local_name.as_ref();
+                    match local {
                         "version" => {
                             for attr in e.attributes().flatten() {
                                 match attr.key.as_ref() {
-                                    b"epoch" => {
+                                    "epoch" => {
                                         // epoch=0 等价于无 epoch（dnf 同语义不显示）
-                                        let v = String::from_utf8_lossy(attr.value.as_ref())
-                                            .to_string();
+                                        let v = attr.value.as_ref().to_string();
                                         if v != "0" {
                                             pkg.epoch = Some(v);
                                         }
                                     }
-                                    b"ver" => {
-                                        pkg.version =
-                                            String::from_utf8_lossy(attr.value.as_ref()).to_string()
-                                    }
-                                    b"rel" => {
-                                        pkg.release =
-                                            String::from_utf8_lossy(attr.value.as_ref()).to_string()
-                                    }
+                                    "ver" => pkg.version = attr.value.to_string(),
+                                    "rel" => pkg.release = attr.value.to_string(),
                                     _ => {}
                                 }
                             }
                         }
                         "time" => {
                             for attr in e.attributes().flatten() {
-                                if attr.key.as_ref() == b"build" {
-                                    let s =
-                                        String::from_utf8_lossy(attr.value.as_ref()).to_string();
+                                if attr.key.as_ref() == "build" {
+                                    let s = attr.value.to_string();
                                     pkg.build_time = s.parse().ok();
                                 }
                             }
@@ -398,14 +384,12 @@ fn parse_primary_xml_stream<R: std::io::BufRead>(reader: R) -> Result<Vec<PkgMet
                         "size" => {
                             for attr in e.attributes().flatten() {
                                 match attr.key.as_ref() {
-                                    b"package" => {
-                                        let s = String::from_utf8_lossy(attr.value.as_ref())
-                                            .to_string();
+                                    "package" => {
+                                        let s = attr.value.as_ref().to_string();
                                         pkg.size = s.parse().ok();
                                     }
-                                    b"installed" => {
-                                        let s = String::from_utf8_lossy(attr.value.as_ref())
-                                            .to_string();
+                                    "installed" => {
+                                        let s = attr.value.as_ref().to_string();
                                         pkg.install_size = s.parse().ok();
                                     }
                                     _ => {}
@@ -414,10 +398,8 @@ fn parse_primary_xml_stream<R: std::io::BufRead>(reader: R) -> Result<Vec<PkgMet
                         }
                         "location" => {
                             for attr in e.attributes().flatten() {
-                                if attr.key.as_ref() == b"href" {
-                                    pkg.location = Some(
-                                        String::from_utf8_lossy(attr.value.as_ref()).to_string(),
-                                    );
+                                if attr.key.as_ref() == "href" {
+                                    pkg.location = Some(attr.value.to_string());
                                 }
                             }
                         }
@@ -427,7 +409,7 @@ fn parse_primary_xml_stream<R: std::io::BufRead>(reader: R) -> Result<Vec<PkgMet
             }
             Ok(quick_xml::events::Event::Text(t)) => {
                 if let Some(pkg) = &mut current_pkg {
-                    let text = t.decode().unwrap_or_default().to_string();
+                    let text = t.xml10_content().to_string();
                     match current_field.as_str() {
                         "name" => pkg.name = text,
                         "arch" => pkg.arch = text,
@@ -447,8 +429,8 @@ fn parse_primary_xml_stream<R: std::io::BufRead>(reader: R) -> Result<Vec<PkgMet
             Ok(quick_xml::events::Event::End(e)) => {
                 let name = e.name();
                 let ln = name.local_name();
-                let local = String::from_utf8_lossy(ln.as_ref());
-                match local.as_ref() {
+                let local = ln.as_ref();
+                match local {
                     "package" => {
                         if let Some(pkg) = current_pkg.take() {
                             if !pkg.name.is_empty() {
@@ -490,9 +472,9 @@ fn parse_rpm_entry(e: &quick_xml::events::BytesStart) -> Dependency {
 
     for attr in e.attributes().flatten() {
         match attr.key.as_ref() {
-            b"name" => name = String::from_utf8_lossy(attr.value.as_ref()).to_string(),
-            b"ver" => ver = Some(String::from_utf8_lossy(attr.value.as_ref()).to_string()),
-            b"flags" => flags = Some(String::from_utf8_lossy(attr.value.as_ref()).to_string()),
+            "name" => name = attr.value.to_string(),
+            "ver" => ver = Some(attr.value.to_string()),
+            "flags" => flags = Some(attr.value.to_string()),
             _ => {}
         }
     }
@@ -518,20 +500,19 @@ fn parse_filelists_xml_stream<R: std::io::BufRead>(reader: R) -> HashMap<String,
             Ok(quick_xml::events::Event::Start(e)) => {
                 let name = e.name();
                 match name.as_ref() {
-                    b"package" => {
+                    "package" => {
                         for attr in e.attributes().flatten() {
-                            if attr.key.as_ref() == b"name" {
-                                current_pkg_name =
-                                    Some(String::from_utf8_lossy(attr.value.as_ref()).to_string());
+                            if attr.key.as_ref() == "name" {
+                                current_pkg_name = Some(attr.value.to_string());
                                 current_files.clear();
                             }
                         }
                     }
-                    b"file" => {
+                    "file" => {
                         skip_file = false;
                         for attr in e.attributes().flatten() {
-                            if attr.key.as_ref() == b"type" {
-                                let val = String::from_utf8_lossy(attr.value.as_ref());
+                            if attr.key.as_ref() == "type" {
+                                let val = attr.value.as_ref();
                                 if val == "dir" || val == "ghost" {
                                     skip_file = true;
                                 }
@@ -542,12 +523,12 @@ fn parse_filelists_xml_stream<R: std::io::BufRead>(reader: R) -> HashMap<String,
                 }
             }
             Ok(quick_xml::events::Event::Empty(e)) => {
-                if e.name().as_ref() == b"file" {
+                if e.name().as_ref() == "file" {
                     // self-closing file tag - unlikely but handle
                 }
             }
             Ok(quick_xml::events::Event::Text(t)) => {
-                let path = t.decode().unwrap_or_default().to_string();
+                let path = t.xml10_content().to_string();
                 if !path.trim().is_empty() && current_pkg_name.is_some() && !skip_file {
                     // 归一为绝对路径（filelists 条目通常以 / 开头，防御性补齐）
                     if path.starts_with('/') {
@@ -558,7 +539,7 @@ fn parse_filelists_xml_stream<R: std::io::BufRead>(reader: R) -> HashMap<String,
                 }
             }
             Ok(quick_xml::events::Event::End(e)) => {
-                if e.name().as_ref() == b"package" {
+                if e.name().as_ref() == "package" {
                     if let Some(name) = current_pkg_name.take() {
                         map.insert(name, std::mem::take(&mut current_files));
                     }
@@ -588,27 +569,22 @@ fn parse_other_xml(xml: &str) -> HashMap<String, Vec<ChangelogEntry>> {
             Ok(quick_xml::events::Event::Start(e)) => {
                 let name = e.name();
                 match name.as_ref() {
-                    b"package" => {
+                    "package" => {
                         for attr in e.attributes().flatten() {
-                            if attr.key.as_ref() == b"name" {
-                                current_pkg_name =
-                                    Some(String::from_utf8_lossy(attr.value.as_ref()).to_string());
+                            if attr.key.as_ref() == "name" {
+                                current_pkg_name = Some(attr.value.to_string());
                                 current_changelog.clear();
                             }
                         }
                     }
-                    b"changelog" => {
+                    "changelog" => {
                         let mut author = String::new();
                         let mut timestamp: i64 = 0;
                         for attr in e.attributes().flatten() {
                             match attr.key.as_ref() {
-                                b"author" => {
-                                    author =
-                                        String::from_utf8_lossy(attr.value.as_ref()).to_string()
-                                }
-                                b"date" => {
-                                    let s =
-                                        String::from_utf8_lossy(attr.value.as_ref()).to_string();
+                                "author" => author = attr.value.to_string(),
+                                "date" => {
+                                    let s = attr.value.to_string();
                                     timestamp = s.parse().unwrap_or(0);
                                 }
                                 _ => {}
@@ -622,26 +598,25 @@ fn parse_other_xml(xml: &str) -> HashMap<String, Vec<ChangelogEntry>> {
                         current_tag = "changelog".to_string();
                     }
                     _ => {
-                        current_tag =
-                            String::from_utf8_lossy(name.local_name().as_ref()).to_string();
+                        current_tag = name.local_name().as_ref().to_string();
                     }
                 }
             }
             Ok(quick_xml::events::Event::Text(t)) => {
                 if current_tag == "changelog" {
                     if let Some(entry) = &mut current_entry {
-                        entry.text = t.decode().unwrap_or_default().to_string();
+                        entry.text = t.xml10_content().to_string();
                     }
                 }
             }
             Ok(quick_xml::events::Event::End(e)) => {
                 match e.name().as_ref() {
-                    b"package" => {
+                    "package" => {
                         if let Some(name) = current_pkg_name.take() {
                             map.insert(name, std::mem::take(&mut current_changelog));
                         }
                     }
-                    b"changelog" => {
+                    "changelog" => {
                         if let Some(entry) = current_entry.take() {
                             current_changelog.push(entry);
                         }

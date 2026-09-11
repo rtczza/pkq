@@ -250,27 +250,24 @@ pub fn parse_metalink_urls(content: &str) -> Vec<String> {
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(quick_xml::events::Event::Start(e)) => {
-                if e.name().as_ref() == b"url" {
+                if e.name().as_ref() == "url" {
                     in_url = true;
                     text.clear();
                     preference = 0;
                     for attr in e.attributes().flatten() {
-                        if attr.key.as_ref() == b"preference" {
-                            preference = String::from_utf8_lossy(&attr.value)
-                                .trim()
-                                .parse()
-                                .unwrap_or(0);
+                        if attr.key.as_ref() == "preference" {
+                            preference = attr.value.as_ref().trim().parse().unwrap_or(0);
                         }
                     }
                 }
             }
             Ok(quick_xml::events::Event::Text(t)) => {
                 if in_url {
-                    text.push_str(&t.decode().unwrap_or_default());
+                    text.push_str(&t.xml10_content());
                 }
             }
             Ok(quick_xml::events::Event::End(e)) => {
-                if e.name().as_ref() == b"url" {
+                if e.name().as_ref() == "url" {
                     in_url = false;
                     let url = text.trim().to_string();
                     if url.starts_with("https://") || url.starts_with("http://") {
