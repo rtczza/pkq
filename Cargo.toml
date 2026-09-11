@@ -44,7 +44,7 @@ lz4_flex = "0.11"
 filetime = "0.2"
 
 # Directory paths
-dirs = "5"
+dirs = "7"
 
 # Error handling
 thiserror = "1"
