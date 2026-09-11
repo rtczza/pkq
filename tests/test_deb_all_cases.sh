@@ -7,6 +7,11 @@
 # =============================================================================
 set -u
 
+# 固定中文输出：断言默认匹配中文文案；英文用例用 `env LANG=en_US.UTF-8` 单独覆盖
+# （GitHub Actions runner 默认 LANG=C.UTF-8，会导致中文断言全部失败）
+export LANG=zh_CN.UTF-8
+unset LC_ALL LC_MESSAGES
+
 BIN="${PKGBIN:-./target/release/pkq}"
 SHOW="${SHOW_LINES:-12}"
 PASS=0
