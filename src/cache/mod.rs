@@ -58,7 +58,7 @@ pub fn cache_status() -> Vec<(String, u64)> {
             }
         }
     }
-    items.sort_by(|a, b| b.1.cmp(&a.1));
+    items.sort_by_key(|(_, size)| std::cmp::Reverse(*size));
     items
 }
 

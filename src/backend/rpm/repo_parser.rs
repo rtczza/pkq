@@ -76,15 +76,11 @@ fn parse_repo_content(content: &str) -> Vec<RepoConfig> {
                     "metalink" => repo.metalink = Some(val.to_string()),
                     "enabled" => repo.enabled = val != "0",
                     "gpgcheck" => repo.gpgcheck = val != "0",
-                    "username" => {
-                        if !val.starts_with('$') {
-                            repo.username = Some(val.to_string());
-                        }
+                    "username" if !val.starts_with('$') => {
+                        repo.username = Some(val.to_string());
                     }
-                    "password" => {
-                        if !val.starts_with('$') {
-                            repo.password = Some(val.to_string());
-                        }
+                    "password" if !val.starts_with('$') => {
+                        repo.password = Some(val.to_string());
                     }
                     _ => {}
                 }
@@ -289,7 +285,7 @@ pub fn parse_metalink_urls(content: &str) -> Vec<String> {
         buf.clear();
     }
 
-    candidates.sort_by(|a, b| b.0.cmp(&a.0));
+    candidates.sort_by_key(|(ts, _)| std::cmp::Reverse(*ts));
     candidates.into_iter().map(|(_, u)| u).collect()
 }
 

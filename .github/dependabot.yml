@@ -8,3 +8,7 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    ignore:
+      # MSRV 钉版（rust-toolchain@1.89.0 与 Cargo.toml rust-version 绑定），
+      # 不可随 action 发布自动升级（Dependabot 曾误升到不存在的 1.120.0）
+      - dependency-name: "dtolnay/rust-toolchain"
