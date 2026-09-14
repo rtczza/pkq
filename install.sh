@@ -1,7 +1,8 @@
 #!/bin/sh
 # pkq installer: https://github.com/rtczza/pkq
 #
-#   curl --proto '=https' --tlsv1.2 -sSfL https://github.com/rtczza/pkq/releases/latest/download/install.sh | sh
+#   install:   curl --proto '=https' --tlsv1.2 -sSfL https://github.com/rtczza/pkq/releases/latest/download/install.sh | sh
+#   uninstall: curl --proto '=https' --tlsv1.2 -sSfL https://github.com/rtczza/pkq/releases/latest/download/install.sh | sh -s -- uninstall
 #
 # Environment:
 #   PKQ_VERSION   version to install, e.g. 0.2.0 (default: latest)
@@ -83,7 +84,48 @@ persist_path() {
     [ -n "$updated" ] && info "persisted PATH to:${updated} (new terminals OK)"
 }
 
+# remove the pkq binary, the installer's PATH lines and cached metadata
+uninstall() {
+    targets=""
+    for dir in "${INSTALL_DIR}" "${HOME}/.local/bin" /usr/local/bin /usr/bin; do
+        [ -f "${dir}/pkq" ] || continue
+        if [ -w "${dir}" ] || [ "$(id -u)" -eq 0 ]; then
+            targets="${targets}${targets:+ }${dir}/pkq"
+        else
+            info "skip ${dir}/pkq (no write permission; use sudo to remove it)"
+        fi
+    done
+
+    if [ -n "$targets" ]; then
+        rm -f $targets || error "failed to remove:${targets}"
+        info "removed:${targets}"
+    else
+        info "no pkq binary found in the usual locations"
+    fi
+
+    pat_marker='# added by pkq installer'
+    cleaned=""
+    for rc in "${HOME}/.bashrc" "${HOME}/.zshrc" "${HOME}/.profile"; do
+        [ -f "$rc" ] || continue
+        grep -qF "$pat_marker" "$rc" 2>/dev/null || continue
+        sed -i "/${pat_marker}/d" "$rc"
+        cleaned="${cleaned}${cleaned:+ }${rc}"
+    done
+    [ -n "$cleaned" ] && info "removed PATH lines from:${cleaned}"
+
+    if [ -d "${HOME}/.cache/pkq" ]; then
+        rm -rf "${HOME}/.cache/pkq" && info "removed cache ${HOME}/.cache/pkq"
+    fi
+
+    info "pkq uninstalled"
+}
+
 main() {
+    if [ "${1:-}" = "uninstall" ]; then
+        uninstall
+        return
+    fi
+
     [ "$(uname -s)" = "Linux" ] || error "pkq only supports Linux"
 
     if [ -z "$INSTALL_DIR" ]; then

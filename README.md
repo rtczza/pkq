@@ -30,6 +30,12 @@ curl --proto '=https' --tlsv1.2 -sSfL https://github.com/rtczza/pkq/releases/lat
 默认安装到 `/usr/local/bin`（无写权限时自动降级到 `~/.local/bin`，并提示 PATH 配置）。
 可用环境变量控制：`PKQ_VERSION`（指定版本）、`INSTALL_DIR`（安装目录）。
 
+**卸载**（删除二进制、安装器写入的 PATH 行和 `~/.cache/pkq` 缓存）：
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSfL https://github.com/rtczza/pkq/releases/latest/download/install.sh | sh -s -- uninstall
+```
+
 **从源码构建**（Rust 1.89+，见 Cargo.toml 的 rust-version）：
 
 ```bash
