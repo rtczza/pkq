@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-09-14
+
+### Added
+
+- 安装脚本新增 `uninstall` 模式：`| sh -s -- uninstall` 一键卸载，
+  删除二进制、安装器写入的 PATH 行与 `~/.cache/pkq` 缓存
+
 ## [0.2.2] - 2026-09-14
 
 ### Added
