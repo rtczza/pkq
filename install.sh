@@ -65,22 +65,41 @@ pick_install_dir() {
 }
 
 # make PATH persistent like rustup: append an export line to the user's
-# shell rc files, so new terminals pick it up (idempotent via exact match)
+# shell startup files (idempotent via the marker comment). SSH sessions are
+# login shells and read .bash_profile / .profile (not .bashrc), while local
+# terminals read .bashrc / .zshrc, so we cover both kinds of files.
 persist_path() {
     pat="export PATH=\"${INSTALL_DIR}:\$PATH\""
+    line="${pat}  # added by pkq installer"
     updated=""
-    found=0
-    for rc in "${HOME}/.bashrc" "${HOME}/.zshrc" "${HOME}/.profile"; do
-        [ -f "$rc" ] || continue
-        found=1
-        grep -qF "$pat" "$rc" 2>/dev/null && continue
-        { echo ""; echo "${pat}  # added by pkq installer"; } >> "$rc" || continue
-        updated="${updated}${updated:+ }${rc}"
-    done
-    if [ "$found" -eq 0 ]; then
-        rc="${HOME}/.bashrc"
-        echo "${pat}  # added by pkq installer" >> "$rc" && updated="$rc"
+
+    append_to() {
+        grep -qF "$pat" "$1" 2>/dev/null && return 0
+        { echo ""; echo "$line"; } >> "$1" || return 1
+        updated="${updated}${updated:+ }$1"
+    }
+
+    # bash login shells read the FIRST existing of the three
+    if [ -f "${HOME}/.bash_profile" ]; then
+        append_to "${HOME}/.bash_profile"
+    elif [ -f "${HOME}/.bash_login" ]; then
+        append_to "${HOME}/.bash_login"
+    elif [ -f "${HOME}/.profile" ]; then
+        append_to "${HOME}/.profile"
+    else
+        append_to "${HOME}/.bash_profile"
     fi
+
+    # bash interactive (non-login) shells
+    [ -f "${HOME}/.bashrc" ] && append_to "${HOME}/.bashrc"
+
+    # zsh: login shells read .zprofile, interactive read .zshrc; only
+    # touch zsh files when the user actually has one of them
+    if [ -f "${HOME}/.zshrc" ] || [ -f "${HOME}/.zprofile" ]; then
+        append_to "${HOME}/.zprofile"
+        [ -f "${HOME}/.zshrc" ] && append_to "${HOME}/.zshrc"
+    fi
+
     [ -n "$updated" ] && info "persisted PATH to:${updated} (new terminals OK)"
 }
 
@@ -105,7 +124,8 @@ uninstall() {
 
     pat_marker='# added by pkq installer'
     cleaned=""
-    for rc in "${HOME}/.bashrc" "${HOME}/.zshrc" "${HOME}/.profile"; do
+    for rc in "${HOME}/.bash_profile" "${HOME}/.bash_login" "${HOME}/.bashrc" \
+        "${HOME}/.zprofile" "${HOME}/.zshrc" "${HOME}/.profile"; do
         [ -f "$rc" ] || continue
         grep -qF "$pat_marker" "$rc" 2>/dev/null || continue
         sed -i "/${pat_marker}/d" "$rc"
