@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-09-14
+
+### Added
+
+- 安装器将 PATH 持久化到 `~/.bashrc` / `~/.zshrc` / `~/.profile`
+  （幂等，无 rc 文件时自动创建），新终端开箱即用，对齐 rustup 体验
+
+### Fixed
+
+- 解压改用 `tar -m`，消除时钟偏移主机上的未来时间戳警告
+
 ## [0.2.1] - 2026-09-14
 
 ### Added
