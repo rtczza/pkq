@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-09-14
+
+### Fixed
+
+- 安装器 PATH 持久化覆盖 SSH login shell（写 `.bash_profile` 等
+  登录文件，此前仅写 `.bashrc` 导致新 SSH 会话找不到 `pkq`）
+
 ## [0.2.3] - 2026-09-14
 
 ### Added
