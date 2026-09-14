@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-14
+
+### Added
+
+- 一键安装：`curl ... | sh` 无写权限时自动降级 `~/.local/bin`，
+  目标目录自动创建，安装后提示 PATH 配置
+- README 新增 `cargo install pkq`（crates.io）安装说明
+
+### Changed
+
+- base64 改用标准 `base64` crate 替代手写实现，补充 RFC 4648 测试向量
+- 缓存目录创建失败由静默忽略改为告警日志，便于排查权限问题
+
+### Removed
+
+- 删除易过时的中英文设计文档，文档收敛至命令参考与用户手册
+
 ## [0.2.0] - 2026-09-10
 
 ### Added
