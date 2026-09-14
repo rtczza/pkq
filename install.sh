@@ -7,6 +7,8 @@
 #   PKQ_VERSION   version to install, e.g. 0.2.0 (default: latest)
 #   INSTALL_DIR   target directory   (default: /usr/local/bin,
 #                                    falls back to $HOME/.local/bin without write access)
+#                 when the target is not on PATH, the installer appends an
+#                 export line to ~/.bashrc / ~/.zshrc / ~/.profile (like rustup)
 #   BASE_URL      download base      (default: GitHub releases)
 
 set -u
@@ -61,6 +63,26 @@ pick_install_dir() {
     fi
 }
 
+# make PATH persistent like rustup: append an export line to the user's
+# shell rc files, so new terminals pick it up (idempotent via exact match)
+persist_path() {
+    pat="export PATH=\"${INSTALL_DIR}:\$PATH\""
+    updated=""
+    found=0
+    for rc in "${HOME}/.bashrc" "${HOME}/.zshrc" "${HOME}/.profile"; do
+        [ -f "$rc" ] || continue
+        found=1
+        grep -qF "$pat" "$rc" 2>/dev/null && continue
+        { echo ""; echo "${pat}  # added by pkq installer"; } >> "$rc" || continue
+        updated="${updated}${updated:+ }${rc}"
+    done
+    if [ "$found" -eq 0 ]; then
+        rc="${HOME}/.bashrc"
+        echo "${pat}  # added by pkq installer" >> "$rc" && updated="$rc"
+    fi
+    [ -n "$updated" ] && info "persisted PATH to:${updated} (new terminals OK)"
+}
+
 main() {
     [ "$(uname -s)" = "Linux" ] || error "pkq only supports Linux"
 
@@ -103,7 +125,7 @@ main() {
         info "checksum OK"
     fi
 
-    tar -xzf "${tmpdir}/${fname}" -C "$tmpdir" || error "extract failed"
+    tar -xmzf "${tmpdir}/${fname}" -C "$tmpdir" || error "extract failed"
     [ -f "${tmpdir}/pkq-${version}-${arch}/pkq" ] || error "archive does not contain pkq binary"
 
     install -m 0755 "${tmpdir}/pkq-${version}-${arch}/pkq" "${INSTALL_DIR}/pkq" || error "install to ${INSTALL_DIR} failed"
@@ -113,8 +135,9 @@ main() {
     case ":${PATH}:" in
         *":${INSTALL_DIR}:"*) ;;
         *)
-            info "note: ${INSTALL_DIR} is not in your PATH"
-            info "add it: export PATH=\"${INSTALL_DIR}:\$PATH\"  (e.g. append to ~/.bashrc or ~/.zshrc)"
+            persist_path
+            info "note: this shell does not see ${INSTALL_DIR} yet"
+            info "run: export PATH=\"${INSTALL_DIR}:\$PATH\"  (or: source ~/.bashrc, or reopen the terminal)"
             ;;
     esac
 
