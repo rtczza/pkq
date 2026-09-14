@@ -21,11 +21,21 @@
 
 ## 安装
 
+**一键安装**（自动识别 x86_64 / aarch64，下载并校验 sha256 后安装）：
+
 ```bash
-# 从源码构建（Rust 1.89+，见 Cargo.toml 的 rust-version）
-cargo install --path .
-# 或直接使用构建产物
-cargo build --release && ./target/release/pkq --help
+curl --proto '=https' --tlsv1.2 -sSfL https://github.com/rtczza/pkq/releases/latest/download/install.sh | sh
+```
+
+默认安装到 `/usr/local/bin`（无写权限时自动降级到 `~/.local/bin`，并提示 PATH 配置）。
+可用环境变量控制：`PKQ_VERSION`（指定版本）、`INSTALL_DIR`（安装目录）。
+
+**从源码构建**（Rust 1.89+，见 Cargo.toml 的 rust-version）：
+
+```bash
+cargo install pkq          # 从 crates.io 安装
+cargo install --path .     # 从本仓库源码安装
+cargo build --release && ./target/release/pkq --help   # 或直接使用构建产物
 ```
 
 ## 快速上手

@@ -1,18 +1,19 @@
 #!/bin/sh
 # pkq installer: https://github.com/rtczza/pkq
 #
-#   curl -sSfL https://github.com/rtczza/pkq/releases/latest/download/install.sh | sh
+#   curl --proto '=https' --tlsv1.2 -sSfL https://github.com/rtczza/pkq/releases/latest/download/install.sh | sh
 #
 # Environment:
 #   PKQ_VERSION   version to install, e.g. 0.2.0 (default: latest)
-#   INSTALL_DIR   target directory   (default: /usr/bin)
+#   INSTALL_DIR   target directory   (default: /usr/local/bin,
+#                                    falls back to $HOME/.local/bin without write access)
 #   BASE_URL      download base      (default: GitHub releases)
 
 set -u
 
 GITHUB_REPO="rtczza/pkq"
 BASE_URL="${BASE_URL:-https://github.com/${GITHUB_REPO}/releases}"
-INSTALL_DIR="${INSTALL_DIR:-/usr/bin}"
+INSTALL_DIR="${INSTALL_DIR:-}"
 
 info()  { printf '%s\n' "pkq-installer: $*"; }
 error() { printf '%s\n' "pkq-installer: error: $*" >&2; exit 1; }
@@ -49,12 +50,27 @@ resolve_latest() {
     fi
 }
 
+# pick the install target: /usr/local/bin when writable (or root),
+# otherwise $HOME/.local/bin so that a plain `curl | sh` needs no sudo
+pick_install_dir() {
+    if [ "$(id -u)" -eq 0 ] || [ -w /usr/local/bin ] ||
+        { [ ! -e /usr/local/bin ] && [ -w /usr/local ]; }; then
+        echo "/usr/local/bin"
+    else
+        echo "${HOME}/.local/bin"
+    fi
+}
+
 main() {
     [ "$(uname -s)" = "Linux" ] || error "pkq only supports Linux"
 
-    if [ "$(id -u)" -ne 0 ] && [ ! -w "$INSTALL_DIR" ]; then
-        error "cannot write to ${INSTALL_DIR}; re-run with sudo, or use: INSTALL_DIR=\$HOME/.local/bin $0"
+    if [ -z "$INSTALL_DIR" ]; then
+        INSTALL_DIR=$(pick_install_dir)
     fi
+    mkdir -p "$INSTALL_DIR" 2>/dev/null ||
+        error "cannot create ${INSTALL_DIR}; re-run with sudo, or set INSTALL_DIR to a writable directory"
+    [ -w "$INSTALL_DIR" ] ||
+        error "cannot write to ${INSTALL_DIR}; re-run with sudo, or set INSTALL_DIR to a writable directory"
 
     arch=$(detect_arch)
 
@@ -93,6 +109,15 @@ main() {
     install -m 0755 "${tmpdir}/pkq-${version}-${arch}/pkq" "${INSTALL_DIR}/pkq" || error "install to ${INSTALL_DIR} failed"
     info "installed pkq to ${INSTALL_DIR}/pkq"
     "${INSTALL_DIR}/pkq" --version || error "installed binary does not run (glibc too old?)"
+
+    case ":${PATH}:" in
+        *":${INSTALL_DIR}:"*) ;;
+        *)
+            info "note: ${INSTALL_DIR} is not in your PATH"
+            info "add it: export PATH=\"${INSTALL_DIR}:\$PATH\"  (e.g. append to ~/.bashrc or ~/.zshrc)"
+            ;;
+    esac
+
     info "done. try: pkq --help"
 }
 
