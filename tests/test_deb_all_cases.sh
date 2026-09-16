@@ -139,8 +139,15 @@ expect_contains "owns 通配符查询" "bash" "$BIN" owns "*/bin/bash"
 
 echo -e "\n>>> 3.3 公共目录 /etc (展示)"
 display_only "owns /etc" "$BIN" owns /etc
-expect_contains "owns /etc 截断提示引导 --all" "使用 --all 查看全部" "$BIN" owns /etc
-expect_not_contains "owns /etc --all 无截断提示" "仅显示前" "$BIN" owns /etc --all
+# 截断提示仅在归属包数超过限流阈值（DEFAULT_PAGE_LIMIT=50）时出现；
+# 精简环境（如 CI 容器）归属包少不触发限流，按实际归属数条件跳过
+ETC_OWNERS=$(dpkg -S /etc 2>/dev/null | sed 's/.*: //' | tr ',' '\n' | tr -d ' ' | sort -u | grep -c .)
+if [ "${ETC_OWNERS:-0}" -gt 50 ]; then
+    expect_contains "owns /etc 截断提示引导 --all" "使用 --all 查看全部" "$BIN" owns /etc
+    expect_not_contains "owns /etc --all 无截断提示" "仅显示前" "$BIN" owns /etc --all
+else
+    echo "  [SKIP] /etc 归属包数(${ETC_OWNERS:-0})未超限流阈值"
+fi
 
 echo ">>> 3.4 不存在路径 断言: 中英文报错"
 expect_contains "owns 不存在路径(中文)" "不存在" "$BIN" owns /opt/not_exist_file_999.so
@@ -152,8 +159,13 @@ section "【测试 4】deps 依赖关系 (分段完整性)"
 echo ">>> 4.1 [中文] deps bash 断言: 多分段（依赖/推荐/建议/冲突/替换 至少含 依赖）"
 expect_contains "deps 分段头 依赖" "依赖" "$BIN" deps bash
 
-echo -e "\n>>> 4.2 deps bash 断言: 替换 段存在（bash 替换 bash-completion/doc）"
-expect_contains "deps 分段头 替换" "替换" "$BIN" deps bash
+echo -e "\n>>> 4.2 deps bash 断言: 替换 段存在（仅当 bash 元数据含 Replaces）"
+# ubuntu 的 bash 无 Replaces 字段（UOS/Debian 有），按本环境元数据条件跳过
+if dpkg -s bash 2>/dev/null | grep -q '^Replaces:'; then
+    expect_contains "deps 分段头 替换" "替换" "$BIN" deps bash
+else
+    echo "  [SKIP] 本环境 bash 无 Replaces 字段"
+fi
 
 echo -e "\n>>> 4.3 [英文] deps bash 断言: Depends 头"
 expect_contains "deps 英文分段头" "Depends" env LANG=en_US.UTF-8 "$BIN" deps bash
@@ -184,8 +196,15 @@ fi
 echo -e "\n>>> 5.2 rdeps --installed-only 断言: 不含 [未安装]"
 expect_not_contains "rdeps installed-only 纯净" "[未安装]" "$BIN" rdeps "$INSTALLED_PKG" --installed-only
 
-echo -e "\n>>> 5.3 rdeps 默认限流断言: 提示使用 --all 查看全部"
-expect_contains "rdeps 截断提示引导 --all" "使用 --all 查看全部" "$BIN" rdeps unzip
+echo -e "\n>>> 5.3 rdeps 默认限流断言: 提示使用 --all 查看全部（仅当结果超阈值）"
+# 限流提示仅在反向依赖数超过阈值（50）时出现，仓库元数据缺失的精简环境
+# 结果数少，按实际数量条件跳过
+RDEPS_TOTAL=$("$BIN" rdeps unzip --all 2>/dev/null | tail -n 1 | sed -n 's/.*共 \([0-9]*\) 个反向依赖包.*/\1/p')
+if [ "${RDEPS_TOTAL:-0}" -gt 50 ]; then
+    expect_contains "rdeps 截断提示引导 --all" "使用 --all 查看全部" "$BIN" rdeps unzip
+else
+    echo "  [SKIP] unzip 反向依赖数(${RDEPS_TOTAL:-0})未超限流阈值"
+fi
 
 echo -e "\n>>> 5.4 rdeps --all 断言: 输出不含限流提示"
 expect_not_contains "rdeps --all 无截断提示" "仅显示前" "$BIN" rdeps unzip --all

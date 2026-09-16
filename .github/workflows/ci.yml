@@ -106,8 +106,26 @@ jobs:
         run: |
           echo "== rpmdb =="
           rpm --eval '%_dbpath' || true
-          ls -la /var/lib/rpm/ 2>/dev/null | head -5 || echo "(no /var/lib/rpm)"
+          ls -la /var/lib/rpm/ 2>/dev/null | head -8 || echo "(no /var/lib/rpm)"
           ls -la /usr/lib/sysimage/rpm/ 2>/dev/null | head -8 || echo "(no /usr/lib/sysimage/rpm)"
+          echo "== rpmdb schema dump =="
+          command -v python3 >/dev/null || dnf install -y python3
+          python3 - <<'EOF' || true
+          import sqlite3
+          c = sqlite3.connect("file:/usr/lib/sysimage/rpm/rpmdb.sqlite?mode=ro", uri=True)
+          tables = [t[0] for t in c.execute("select name from sqlite_master where type='table'")]
+          print("tables:", tables)
+          if "Packages" in tables:
+              cur = c.execute("select * from Packages limit 1")
+              print("Packages cols:", [d[0] for d in cur.description])
+              row = cur.fetchone()
+              if row:
+                  blob = next((v for v in row if isinstance(v, bytes)), None)
+                  print("row types:", [type(v).__name__ for v in row],
+                        "blob head:", blob[:16].hex() if blob else None)
+          EOF
+          echo "== pkq local load (verbose) =="
+          RUST_LOG=pkq=debug ./target/release/pkq info bash 2>&1 | head -5 || true
           echo "== pkq cache update (verbose) =="
           ./target/release/pkq cache update || true
 
