@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7] - 2026-09-16
+
+### Fixed
+
+- CI 首次全绿，修复三个长期失败的 job：
+  - Security audit：rustls 升级至 0.23.45（RUSTSEC-2026-0285）
+  - E2E RPM：rpmdb sqlite blob 按 hdrblob 布局（无魔数）解析——此前仅
+    识别包文件头格式，本地库在 Fedora 上静默为空；补充
+    `/usr/lib/sysimage/rpm` 路径探测；repodata 支持 zstd
+    （Fedora 44+ 为 primary.xml.zst，纯 Rust ruzstd 解码）；
+    本地库加载失败输出告警日志
+  - E2E DEB：支持 apt `mirror+file:` 镜像方案（行首 URI 字段、剥离
+    priority 后缀）；架构回退名映射为 Debian 架构名（x86_64→amd64）；
+    仓库空索引不再落盘（避免 TTL 锁定）；`/var/lib/apt/lists` 回退
+    文件名与 apt 落盘命名对齐
+- 安装器多副本遮蔽检测：安装后比对 `command -v pkq` 并告警（含
+  hash 缓存残留提示），卸载时提示 cargo 管理的残留副本——双副本
+  场景（如 `~/.cargo/bin` 先于 `~/.local/bin`）此前装/卸均静默失效
+- E2E 环境相关断言条件化（bash Replaces 段、/etc 与 rdeps 截断提示、
+  信噪比断言收窄到主列表段）；CI 新增 E2E 环境诊断与元数据预热步骤
+
 ## [0.2.6] - 2026-09-16
 
 ### Added
