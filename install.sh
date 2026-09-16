@@ -159,6 +159,16 @@ uninstall() {
         rm -rf "${HOME}/.cache/pkq" && info "removed cache ${HOME}/.cache/pkq"
     fi
 
+    # 卸载器只管自己装的副本；cargo 等其他来源的副本不在扫描清单内，
+    # 但必须提示，否则用户会以为"卸载了还在"是 bug（实机踩坑）
+    if [ -f "${HOME}/.cargo/bin/pkq" ]; then
+        info "note: ${HOME}/.cargo/bin/pkq is managed by cargo; remove it with 'cargo uninstall pkq'"
+    fi
+    remaining=$(command -v pkq 2>/dev/null || true)
+    if [ -n "$remaining" ]; then
+        info "note: pkq is still available at ${remaining} (not installed by this installer)"
+    fi
+
     info "pkq uninstalled"
 }
 
@@ -226,6 +236,20 @@ main() {
     esac
 
     persist_completions
+
+    # 遮蔽检测：PATH 中更优先位置若已存在同名 pkq，新装副本会被遮蔽，
+    # 用户敲 pkq 仍会执行旧版（实机踩坑：~/.cargo/bin 先于 ~/.local/bin）
+    resolved=$(command -v pkq 2>/dev/null || true)
+    if [ -n "$resolved" ] && [ "$resolved" != "${INSTALL_DIR}/pkq" ]; then
+        if [ ! -x "$resolved" ]; then
+            info "note: this shell's command cache points to removed ${resolved}"
+            info "note: run 'hash -r' (or reopen the terminal) to pick up ${INSTALL_DIR}/pkq"
+        else
+            info "warning: 'pkq' resolves to ${resolved}, not ${INSTALL_DIR}/pkq"
+            info "warning: an earlier PATH entry shadows the new install; the old copy keeps running"
+            info "hint: remove the old copy (e.g. 'cargo uninstall pkq') or reinstall with INSTALL_DIR=<that dir>"
+        fi
+    fi
 
     info "done. try: pkq --help"
 }
