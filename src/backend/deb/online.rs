@@ -325,8 +325,31 @@ fn find_auth_for_url(url: &str, auth_entries: &[AuthEntry]) -> Option<(String, S
     best_match.map(|e| (e.login.clone(), e.password.clone()))
 }
 
+/// 解析 apt 的 `mirror+file:` URI 方案：从指定的镜像清单文件取首个
+/// 镜像 URL（GitHub Actions runner 等云镜像环境的 ubuntu.sources 用此
+/// 方案指向本地镜像列表，直接当 http URL 拼接会导致所有源秒失败）。
+/// 非 mirror+file: 的 URI 原样返回；清单不可读/为空时返回原 URI，
+/// 由后续网络错误路径兜底。
+fn resolve_mirror_uri(uri: &str) -> String {
+    let Some(path) = uri.strip_prefix("mirror+file:") else {
+        return uri.to_string();
+    };
+    match std::fs::read_to_string(path) {
+        Ok(content) => content
+            .lines()
+            .map(str::trim)
+            .find(|l| !l.is_empty() && !l.starts_with('#'))
+            .map(|l| l.trim_end_matches('/').to_string())
+            .unwrap_or_else(|| uri.to_string()),
+        Err(_) => uri.to_string(),
+    }
+}
+
 fn apt_lists_filename(source: &AptSource, component: &str) -> String {
-    let url = &source.url;
+    // apt 落盘命名不含 mirror+file: 方案前缀（scheme 剥离后按路径转写，
+    // 如 mirror+file:/etc/apt/apt-mirrors.txt → _etc_apt_apt-mirrors.txt），
+    // 保持一致才能命中 /var/lib/apt/lists 的本地回退
+    let url = source.url.strip_prefix("mirror+file:").unwrap_or(&source.url);
     let prefix = url
         .replace("https://", "")
         .replace("http://", "")
@@ -382,7 +405,10 @@ impl DebOnline {
             .join(apt_lists_filename(source, component));
         let packages_url = format!(
             "{}/dists/{}/{}/binary-{}/Packages.gz",
-            source.url, source.distribution, component, source.arch
+            resolve_mirror_uri(&source.url),
+            source.distribution,
+            component,
+            source.arch
         );
 
         let auth = find_auth_for_url(&source.url, &self.auth_entries);
@@ -782,6 +808,51 @@ deb [trusted=yes] https://other.com/repo bullseye main
         assert_eq!(entries[0].machine, "example.com");
         assert_eq!(entries[0].login, "user");
         assert_eq!(entries[0].password, "pass123");
+    }
+
+    #[test]
+    fn test_resolve_mirror_uri() {
+        // 非 mirror+file: 原样返回
+        assert_eq!(
+            resolve_mirror_uri("https://deb.debian.org/debian"),
+            "https://deb.debian.org/debian"
+        );
+        // 清单不可读：原样返回（由网络错误路径兜底）
+        assert_eq!(
+            resolve_mirror_uri("mirror+file:/nonexistent/mirrors.txt"),
+            "mirror+file:/nonexistent/mirrors.txt"
+        );
+        // 取首个非注释镜像行，去尾斜杠
+        let dir = std::env::temp_dir().join(format!("pkq_mirror_test_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mf = dir.join("mirrors.txt");
+        std::fs::write(
+            &mf,
+            "# comment\nhttp://azure.archive.ubuntu.com/ubuntu/\nhttp://backup/ubuntu\n",
+        )
+        .unwrap();
+        let uri = format!("mirror+file:{}", mf.display());
+        assert_eq!(
+            resolve_mirror_uri(&uri),
+            "http://azure.archive.ubuntu.com/ubuntu"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_apt_lists_filename_mirror_scheme() {
+        // 与 apt 落盘命名对齐：scheme 剥离后按路径转写
+        let src = AptSource {
+            url: "mirror+file:/etc/apt/apt-mirrors.txt".to_string(),
+            distribution: "noble".to_string(),
+            components: vec!["main".to_string()],
+            arch: "amd64".to_string(),
+            repo_label: "test".to_string(),
+        };
+        assert_eq!(
+            apt_lists_filename(&src, "main"),
+            "_etc_apt_apt-mirrors.txt_dists_noble_main_binary-amd64_Packages"
+        );
     }
 
     #[test]
