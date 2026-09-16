@@ -349,7 +349,10 @@ fn apt_lists_filename(source: &AptSource, component: &str) -> String {
     // apt 落盘命名不含 mirror+file: 方案前缀（scheme 剥离后按路径转写，
     // 如 mirror+file:/etc/apt/apt-mirrors.txt → _etc_apt_apt-mirrors.txt），
     // 保持一致才能命中 /var/lib/apt/lists 的本地回退
-    let url = source.url.strip_prefix("mirror+file:").unwrap_or(&source.url);
+    let url = source
+        .url
+        .strip_prefix("mirror+file:")
+        .unwrap_or(&source.url);
     let prefix = url
         .replace("https://", "")
         .replace("http://", "")

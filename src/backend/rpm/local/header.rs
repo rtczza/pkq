@@ -379,19 +379,31 @@ pub(super) fn parse_rpm_header_raw(data: &[u8]) -> Option<RpmHeaderData> {
     if data.len() < 16 {
         return None;
     }
-    if data[0..4] != RPM_HEADER_MAGIC {
-        return None;
-    }
 
-    let reserved = u32::from_be_bytes([data[4], data[5], data[6], data[7]]);
-    if reserved != 0 {
-        return None;
-    }
+    // 两种 blob 布局：
+    // - 包文件头：magic(4) + reserved(4) + nindex(4) + hsize(4)
+    // - rpmdb sqlite Packages blob（hdrblob）：nindex(4) + hsize(4)，无魔数。
+    //   实测 fedora:latest 的 rpmdb 首字节即为 il（如 0000004f...），首条目
+    //   为 tag=63(HEADERIMMUTABLE) region；此前仅识别带魔数的包文件格式，
+    //   导致所有 db blob 解析失败、本地库静默为空
+    let (nindex, hsize, index_start) = if data[0..4] == RPM_HEADER_MAGIC {
+        let reserved = u32::from_be_bytes([data[4], data[5], data[6], data[7]]);
+        if reserved != 0 {
+            return None;
+        }
+        (
+            u32::from_be_bytes([data[8], data[9], data[10], data[11]]) as usize,
+            u32::from_be_bytes([data[12], data[13], data[14], data[15]]) as usize,
+            16,
+        )
+    } else {
+        (
+            u32::from_be_bytes([data[0], data[1], data[2], data[3]]) as usize,
+            u32::from_be_bytes([data[4], data[5], data[6], data[7]]) as usize,
+            8,
+        )
+    };
 
-    let nindex = u32::from_be_bytes([data[8], data[9], data[10], data[11]]) as usize;
-    let hsize = u32::from_be_bytes([data[12], data[13], data[14], data[15]]) as usize;
-
-    let index_start = 16;
     let index_end = index_start + nindex * 16;
     let data_start = index_end;
     let data_end = data_start + hsize;

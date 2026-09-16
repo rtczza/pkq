@@ -651,6 +651,21 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_rpm_header_db_blob_format() {
+        // rpmdb sqlite Packages blob = 包文件头去掉 magic+reserved 前缀
+        // （hdrblob：il + dl + entries + data），fedora:latest 实测布局。
+        // 回归保护：此前仅识别带魔数的包文件格式，db blob 全部解析失败
+        let pkg_blob = make_header(&[
+            (TAG_NAME, TYPE_STRING, cstr("bash")),
+            (TAG_VERSION, TYPE_STRING, cstr("5.3.9")),
+        ]);
+        let db_blob = pkg_blob[8..].to_vec();
+        let pkg = parse_rpm_header(&db_blob).expect("db blob 应可解析");
+        assert_eq!(pkg.name, "bash");
+        assert_eq!(pkg.version, "5.3.9");
+    }
+
+    #[test]
     fn test_extract_files_from_header() {
         let mut dirs = cstr("/usr/bin/");
         dirs.extend(cstr("/etc/"));
