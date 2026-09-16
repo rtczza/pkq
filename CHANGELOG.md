@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-09-16
+
+### Fixed
+
+- 多架构包（Multi-Arch: same，如 libgnutls-dane0）执行 `list`
+  误报"无专属文件"：dpkg info 文件名带架构限定符（如
+  `libgnutls-dane0:amd64.list`），现按 `dpkg -L` 语义合并该包
+  全部架构的文件列表
+
 ## [0.2.4] - 2026-09-14
 
 ### Fixed
