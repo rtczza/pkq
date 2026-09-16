@@ -339,6 +339,8 @@ fn resolve_mirror_uri(uri: &str) -> String {
             .lines()
             .map(str::trim)
             .find(|l| !l.is_empty() && !l.starts_with('#'))
+            // 行格式为 "URI[ \t]priority:N"（GitHub runner 实测），取首字段
+            .and_then(|l| l.split_whitespace().next())
             .map(|l| l.trim_end_matches('/').to_string())
             .unwrap_or_else(|| uri.to_string()),
         Err(_) => uri.to_string(),
@@ -832,13 +834,13 @@ deb [trusted=yes] https://other.com/repo bullseye main
             resolve_mirror_uri("mirror+file:/nonexistent/mirrors.txt"),
             "mirror+file:/nonexistent/mirrors.txt"
         );
-        // 取首个非注释镜像行，去尾斜杠
+        // 取首个非注释镜像行的首字段（行可带 "URI<TAB>priority:N" 优先级后缀），去尾斜杠
         let dir = std::env::temp_dir().join(format!("pkq_mirror_test_{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let mf = dir.join("mirrors.txt");
         std::fs::write(
             &mf,
-            "# comment\nhttp://azure.archive.ubuntu.com/ubuntu/\nhttp://backup/ubuntu\n",
+            "# comment\nhttp://azure.archive.ubuntu.com/ubuntu/\tpriority:1\nhttp://backup/ubuntu\n",
         )
         .unwrap();
         let uri = format!("mirror+file:{}", mf.display());

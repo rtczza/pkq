@@ -233,10 +233,22 @@ expect_not_contains "search installed-only 纯净" "[未安装]" "$BIN" search z
 echo -e "\n>>> 7.4 search zip --all-files (展示)"
 display_only "search --all-files" "$BIN" search zip --all-files
 
-echo -e "\n>>> 7.4b search bash 主列表信噪比断言: 噪音包折叠"
-expect_contains "search bash 可能相关段存在" "==> 可能相关" "$BIN" search bash
-expect_not_contains "search bash 主列表无 bats 噪音" "  bats " "$BIN" search bash
-expect_contains "search bash 可能相关段存在" "可能相关" "$BIN" search bash
+echo -e "\n>>> 7.4b search bash 主列表信噪比断言: 噪音包折叠进可能相关段"
+# 只检查「==> 软件包」主列表段；Fedora 等仓库存在描述含 bash 的真实
+# bats 包，折叠后的「可能相关」段出现该行属预期行为
+SEARCH_BASH_OUT=$("$BIN" search bash 2>&1)
+echo "$SEARCH_BASH_OUT" | head -n "$SHOW"
+MAIN_SECTION=$(echo "$SEARCH_BASH_OUT" | sed -n '/^==> 软件包/,/^==>/p' | head -n -1)
+if echo "$MAIN_SECTION" | grep -qF "  bats "; then
+    echo "  [FAIL] search bash 主列表无 bats 噪音 —— 主列表出现:   bats "; FAIL=$((FAIL+1))
+else
+    echo "  [PASS] search bash 主列表无 bats 噪音"; PASS=$((PASS+1))
+fi
+if echo "$SEARCH_BASH_OUT" | grep -qF "可能相关"; then
+    echo "  [PASS] search bash 可能相关段存在"; PASS=$((PASS+1))
+else
+    echo "  [FAIL] search bash 可能相关段存在 —— 未找到: 可能相关"; FAIL=$((FAIL+1))
+fi
 
 echo -e "\n>>> 7.5 BrokenPipe 断言: 管道截断不 panic"
 ERR_TMP=$(mktemp)
