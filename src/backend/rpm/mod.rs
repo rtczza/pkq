@@ -124,7 +124,15 @@ impl Default for RpmBackend {
 
 impl RpmBackend {
     pub fn new() -> Self {
-        let local = local::RpmLocal::load().ok();
+        // 本地库加载失败必须留痕（之前静默降级，CI 上 rpmdb 解析故障
+        // 表面只剩"本地未安装"，根因无从排查）
+        let local = match local::RpmLocal::load() {
+            Ok(l) => Some(l),
+            Err(e) => {
+                tracing::warn!("RPM local database load failed: {}", e);
+                None
+            }
+        };
         let online = RpmOnline::new();
         let repos = parse_repo_files()
             .into_iter()

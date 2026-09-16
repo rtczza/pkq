@@ -14,6 +14,11 @@ pub(crate) fn rpm_db_path() -> Option<PathBuf> {
         "/var/lib/rpm/rpmdb.sqlite",
         "/var/lib/rpm/Packages.db",
         "/var/lib/rpm/Packages",
+        // Fedora 41+ 将 rpmdb 迁至 /usr/lib/sysimage/rpm，
+        // 最小容器（如 fedora:latest CI 镜像）内无 /var/lib/rpm
+        "/usr/lib/sysimage/rpm/rpmdb.sqlite",
+        "/usr/lib/sysimage/rpm/Packages.db",
+        "/usr/lib/sysimage/rpm/Packages",
     ] {
         let pb = PathBuf::from(p);
         if pb.exists() {

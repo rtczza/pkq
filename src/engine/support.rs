@@ -500,11 +500,15 @@ pub(crate) fn detect_system() -> Option<PackageSystem> {
     if let Some(sys) = system_from_os_release() {
         return Some(sys);
     }
-    // 路径探测：RPM 数据库三种形态（sqlite / NDB / BDB），再查 dpkg
+    // 路径探测：RPM 数据库三种形态（sqlite / NDB / BDB）+ Fedora 41+ 的
+    // sysimage 布局，再查 dpkg
     let rpm_dbs = [
         "/var/lib/rpm/rpmdb.sqlite",
         "/var/lib/rpm/Packages.db",
         "/var/lib/rpm/Packages",
+        "/usr/lib/sysimage/rpm/rpmdb.sqlite",
+        "/usr/lib/sysimage/rpm/Packages.db",
+        "/usr/lib/sysimage/rpm/Packages",
     ];
     if rpm_dbs.iter().any(|p| std::path::Path::new(p).exists()) {
         return Some(PackageSystem::Rpm);
