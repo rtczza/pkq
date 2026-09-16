@@ -67,7 +67,11 @@ impl DebBackend {
             cfg.offline_mode,
             quiet,
         );
-        let _ = cache::PkgIndexCache::save(&cache_path, summary.packages.clone());
+        // P1-5 对齐：空结果不落盘，避免"全源失败 → 空索引被 TTL 锁定 →
+        // 后续所有仓库查询命中空缓存"（CI E2E 实测踩坑）
+        if !summary.packages.is_empty() {
+            let _ = cache::PkgIndexCache::save(&cache_path, summary.packages.clone());
+        }
         let _ = REPO_CACHE.set(summary.packages);
         Ok(REPO_CACHE.get().unwrap().as_slice())
     }
@@ -363,7 +367,9 @@ impl PkgBackend for DebBackend {
             false,
         );
         let cache_path = cache::deb_cache_path();
-        let _ = cache::PkgIndexCache::save(&cache_path, summary.packages.clone());
+        if !summary.packages.is_empty() {
+            let _ = cache::PkgIndexCache::save(&cache_path, summary.packages.clone());
+        }
         let _ = REPO_CACHE.set(summary.packages);
         Ok(RefreshReport {
             stats: summary.stats,
