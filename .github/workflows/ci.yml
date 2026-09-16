@@ -70,6 +70,21 @@ jobs:
       - name: Build release
         run: cargo build --release
 
+      # 环境诊断 + 元数据预热：cache update 的逐源输出（quiet=false）会把
+      # 每个源的在线/回退/失败原因打到日志，仓库查询类用例失败时据此定位；
+      # 预热的元数据被后续测试矩阵复用，不增加净耗时
+      - name: Environment diagnostics & metadata warmup
+        run: |
+          echo "== apt sources.list =="
+          cat /etc/apt/sources.list 2>/dev/null || echo "(not found)"
+          for f in /etc/apt/sources.list.d/*; do echo "--- $f"; cat "$f" 2>/dev/null; done
+          echo "== apt lists (head) =="
+          ls /var/lib/apt/lists/ 2>/dev/null | head -10
+          echo "== dpkg arch =="
+          cat /var/lib/dpkg/arch 2>/dev/null || echo "(none)"
+          echo "== pkq cache update (verbose) =="
+          ./target/release/pkq cache update || true
+
       - name: Run DEB full test matrix
         run: tests/test_deb_all_cases.sh
 
@@ -86,6 +101,15 @@ jobs:
 
       - name: Build release
         run: cargo build --release
+
+      - name: Environment diagnostics & metadata warmup
+        run: |
+          echo "== rpmdb =="
+          rpm --eval '%_dbpath' || true
+          ls -la /var/lib/rpm/ 2>/dev/null | head -5 || echo "(no /var/lib/rpm)"
+          ls -la /usr/lib/sysimage/rpm/ 2>/dev/null | head -8 || echo "(no /usr/lib/sysimage/rpm)"
+          echo "== pkq cache update (verbose) =="
+          ./target/release/pkq cache update || true
 
       - name: Run RPM full test matrix
         run: tests/test_rpm_all_cases.sh
