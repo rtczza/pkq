@@ -1,4 +1,7 @@
 use clap::{Parser, ValueEnum};
+use clap_complete::engine::{ArgValueCompleter, PathCompleter};
+
+use crate::completion::{cache_target_completer, package_completer, search_pattern_completer};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum OutputFormat {
@@ -58,6 +61,7 @@ pub enum Commands {
     /// 显示软件包详细信息（名称、版本、描述、大小、许可证等）
     #[command(name = "info")]
     Info {
+        #[arg(add = ArgValueCompleter::new(package_completer))]
         name: String,
         #[arg(long, help = "查询仓库而非本地已安装")]
         repo: bool,
@@ -65,6 +69,7 @@ pub enum Commands {
     /// 列出软件包包含的文件
     #[command(name = "list")]
     List {
+        #[arg(add = ArgValueCompleter::new(package_completer))]
         name: String,
         #[arg(long, help = "查询仓库")]
         repo: bool,
@@ -75,6 +80,7 @@ pub enum Commands {
     #[command(name = "owns")]
     Owns {
         /// 文件路径或 Glob 模式（如 /bin/unzip 或 */bin/unzip）
+        #[arg(add = ArgValueCompleter::new(PathCompleter::any()))]
         path: String,
         #[arg(long, help = "在仓库中查找")]
         repo: bool,
@@ -88,6 +94,7 @@ pub enum Commands {
     /// 显示软件包的依赖关系
     #[command(name = "deps")]
     Deps {
+        #[arg(add = ArgValueCompleter::new(package_completer))]
         name: String,
         #[arg(long, help = "查询仓库")]
         repo: bool,
@@ -95,6 +102,7 @@ pub enum Commands {
     /// 显示反向依赖（哪些包依赖此包）
     #[command(name = "rdeps")]
     RDeps {
+        #[arg(add = ArgValueCompleter::new(package_completer))]
         name: String,
         #[arg(
             long,
@@ -115,6 +123,7 @@ pub enum Commands {
     #[command(name = "search")]
     Search {
         /// 搜索关键词（以 / 开头或含 * ? 则转至文件归属查询）
+        #[arg(add = ArgValueCompleter::new(search_pattern_completer))]
         pattern: String,
         #[arg(long, help = "使用正则表达式匹配 / Use regex matching")]
         regex: bool,
@@ -151,6 +160,7 @@ pub enum Commands {
     /// 源码包与二进制包互查（自动识别输入是源码包名还是二进制包名）
     #[command(name = "source")]
     Source {
+        #[arg(add = ArgValueCompleter::new(package_completer))]
         name: String,
         #[arg(long, help = "查询仓库")]
         repo: bool,
@@ -158,6 +168,7 @@ pub enum Commands {
     /// 显示软件包变更日志
     #[command(name = "changelog")]
     Changelog {
+        #[arg(add = ArgValueCompleter::new(package_completer))]
         name: String,
         #[arg(long, help = "查询仓库")]
         repo: bool,
@@ -182,7 +193,7 @@ pub enum CacheCmd {
     #[command(name = "clean")]
     Clean {
         /// 清理目标: all | index | repos | contents
-        #[arg(default_value = "all")]
+        #[arg(default_value = "all", add = ArgValueCompleter::new(cache_target_completer))]
         target: String,
         #[arg(long, help = "跳过确认直接删除")]
         yes: bool,

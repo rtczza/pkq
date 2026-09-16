@@ -11,6 +11,7 @@
 pub mod backend;
 pub mod cache;
 pub mod cli;
+pub mod completion;
 pub mod engine;
 pub mod error;
 pub mod i18n;

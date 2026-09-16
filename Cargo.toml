@@ -82,6 +82,7 @@ base64 = "0.22"
 # Structured logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std"] }
+clap_complete = { version = "4.6.9", features = ["unstable-dynamic"] }
 
 [dev-dependencies]
 # 基准测试框架。关闭默认 features（plotters/html_reports）以最小化依赖体积，

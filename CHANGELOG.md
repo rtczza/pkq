@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Tab 补全：基于 clap_complete 动态补全（bash / zsh），子命令、参数、
+  枚举值全量可补；包名位置参数自动补全本地已安装包（附摘要说明），
+  `owns` / `search` 的 `/` 开头参数按文件路径补全，`cache clean`
+  target 限定为 all|index|repos|contents；安装器自动注册补全（卸载同步清理）
+
 ## [0.2.5] - 2026-09-16
 
 ### Fixed

@@ -9,7 +9,7 @@ use crate::model::*;
 const RPM_HEADER_MAGIC: [u8; 4] = [0x8e, 0xad, 0xe8, 0x01];
 
 /// RPM 数据库路径探测：sqlite（rpm >= 4.16）/ NDB（Packages.db）/ BDB（Packages）
-fn rpm_db_path() -> Option<PathBuf> {
+pub(crate) fn rpm_db_path() -> Option<PathBuf> {
     for p in [
         "/var/lib/rpm/rpmdb.sqlite",
         "/var/lib/rpm/Packages.db",

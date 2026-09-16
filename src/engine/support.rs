@@ -496,7 +496,7 @@ pub(super) fn detect_backend() -> Result<Box<dyn PkgBackend>> {
 
 /// 依据 os-release 判定包系统；UOS 等双系发行版（ID 相同、无 ID_LIKE）返回 None，
 /// 由路径探测兜底（RPM 数据库优先于 dpkg，兼容混合环境）。
-pub(super) fn detect_system() -> Option<PackageSystem> {
+pub(crate) fn detect_system() -> Option<PackageSystem> {
     if let Some(sys) = system_from_os_release() {
         return Some(sys);
     }

@@ -14,6 +14,7 @@
 
 - **双后端统一**：DEB（dpkg / apt / Contents 索引）与 RPM（rpmdb 三格式原生解析 / repodata）
 - **九大子命令**：`info` `list` `owns` `deps` `rdeps` `search` `source` `changelog` `cache`
+- **Tab 补全**：子命令 / 参数 / 包名 / 文件路径全量可补（bash / zsh，安装器自动注册）
 - **语义对齐原生工具**：`rdeps` 与 `dnf repoquery --whatrequires` 结果一致（强依赖 + 能力集匹配）
 - **多级缓存**：HTTP ETag/TTL → 解析结果 postcard → mmap Contents 检索；离线自动降级
 - **机器可读**：`--output json` 统一结构化输出；退出码 `0/1/2`（命中/未找到/错误）
@@ -79,6 +80,20 @@ pkq cache status           # 各缓存目录占用
 pkq cache update           # 强制刷新仓库元数据（逐源进度 + 成败汇总）
 pkq cache clean [target]   # 清理：all | index | repos | contents
 ```
+
+## Tab 补全
+
+一键安装已自动注册（bash / zsh，写入 rc 文件，卸载自动清理）；`cargo install`
+等手动安装时补一行：
+
+```bash
+echo 'source <(COMPLETE=bash pkq)' >> ~/.bashrc   # bash
+echo 'source <(COMPLETE=zsh pkq)' >> ~/.zshrc     # zsh
+```
+
+重新打开终端后：子命令、参数、枚举值（`--output json`）全部可补；
+包名位置参数自动补全本地已安装包（附摘要说明）；`owns` / `search`
+的 `/` 开头参数按文件路径补全。补全仅读本地数据库，不触网。
 
 ## 平台支持
 

@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use pkq::cli::Cli;
 use pkq::engine;
 use pkq::error::PkgError;
@@ -19,6 +19,9 @@ fn reset_sigpipe() {}
 
 fn main() {
     reset_sigpipe();
+    // Tab 补全入口：COMPLETE=<shell> 时输出注册脚本，携带 _CLAP_COMPLETE_INDEX
+    // 时生成候选后即退出（不进入常规命令执行路径）
+    clap_complete::env::CompleteEnv::with_factory(Cli::command).complete();
     let cli = Cli::parse();
     pkq::logging::init(cli.verbose);
     let cache_cfg = model::CacheConfig {

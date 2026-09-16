@@ -103,6 +103,28 @@ persist_path() {
     [ -n "$updated" ] && info "persisted PATH to:${updated} (new terminals OK)"
 }
 
+# register dynamic tab completion (clap_complete CompleteEnv): the rc file
+# re-sources the wrapper from the binary on every interactive shell start,
+# so it self-corrects on upgrades. Idempotent via the completion pattern;
+# carries the installer marker so uninstall cleans it up.
+persist_completions() {
+    updated=""
+
+    register() {
+        grep -qF "$2" "$1" 2>/dev/null && return 0
+        { echo ""; echo "$2  # added by pkq installer"; } >> "$1" || return 1
+        updated="${updated}${updated:+ }$1"
+    }
+
+    # bash interactive shells (SSH non-login interactive shells also read it)
+    [ -f "${HOME}/.bashrc" ] && register "${HOME}/.bashrc" 'source <(COMPLETE=bash pkq)'
+
+    # zsh interactive shells (only when the user actually uses zsh)
+    [ -f "${HOME}/.zshrc" ] && register "${HOME}/.zshrc" 'source <(COMPLETE=zsh pkq)'
+
+    [ -n "$updated" ] && info "registered tab completion in:${updated}"
+}
+
 # remove the pkq binary, the installer's PATH lines and cached metadata
 uninstall() {
     targets=""
@@ -131,7 +153,7 @@ uninstall() {
         sed -i "/${pat_marker}/d" "$rc"
         cleaned="${cleaned}${cleaned:+ }${rc}"
     done
-    [ -n "$cleaned" ] && info "removed PATH lines from:${cleaned}"
+    [ -n "$cleaned" ] && info "removed installer lines from:${cleaned}"
 
     if [ -d "${HOME}/.cache/pkq" ]; then
         rm -rf "${HOME}/.cache/pkq" && info "removed cache ${HOME}/.cache/pkq"
@@ -202,6 +224,8 @@ main() {
             info "run: export PATH=\"${INSTALL_DIR}:\$PATH\"  (or: source ~/.bashrc, or reopen the terminal)"
             ;;
     esac
+
+    persist_completions
 
     info "done. try: pkq --help"
 }

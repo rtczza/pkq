@@ -200,6 +200,51 @@ fn file_mtime(path: &Path) -> u64 {
         .unwrap_or(0)
 }
 
+/// 补全用的本地包名+摘要缓存：TAB 补全每次按键都会拉起本进程，
+/// 必须避免全量解析 dpkg status / rpmdb（实测占补全延迟 96%）。
+/// 失效键 = 本地数据库文件 mtime。
+#[derive(Serialize, Deserialize)]
+pub struct CompletionNamesCache {
+    pub source_mtime: u64,
+    pub packages: Vec<(String, String)>,
+}
+
+impl CompletionNamesCache {
+    pub fn load(path: &Path, source_mtime: u64) -> Option<Self> {
+        if source_mtime == 0 {
+            return None;
+        }
+        let data = std::fs::read(path).ok()?;
+        let cache: Self = decode_cache(&data)?;
+        if cache.source_mtime != source_mtime {
+            return None;
+        }
+        // 空包列表 = 损坏缓存（与 PkgIndexCache 同款防御）
+        if cache.packages.is_empty() {
+            return None;
+        }
+        Some(cache)
+    }
+
+    pub fn save(path: &Path, source_mtime: u64, packages: Vec<(String, String)>) -> Result<()> {
+        let cache = Self {
+            source_mtime,
+            packages,
+        };
+        let data = encode_cache(&cache)?;
+        let tmp = path.with_extension("tmp");
+        ensure_parent_dir(path)?;
+        std::fs::write(&tmp, &data)?;
+        std::fs::rename(&tmp, path)?;
+        Ok(())
+    }
+}
+
+/// 补全包名缓存路径（位于 index/ 下，自动纳入 cache status/clean）
+pub fn completion_names_cache_path() -> PathBuf {
+    cache_dir().join("index").join("completion_names.bin")
+}
+
 fn max_source_mtime(paths: &[PathBuf]) -> u64 {
     paths
         .iter()
@@ -473,4 +518,30 @@ pub fn deb_apt_lists_contents() -> Vec<PathBuf> {
         }
     }
     paths
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_completion_names_cache_roundtrip_and_invalidation() {
+        let path = std::env::temp_dir().join(format!(
+            "pkq_completion_cache_test_{}.bin",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&path);
+        let pkgs = vec![("bash".to_string(), "GNU Bourne Again SHell".to_string())];
+
+        CompletionNamesCache::save(&path, 1234, pkgs.clone()).unwrap();
+        // mtime 一致：命中
+        let loaded = CompletionNamesCache::load(&path, 1234).unwrap();
+        assert_eq!(loaded.packages, pkgs);
+        // mtime 变化（数据库更新）：失效重建
+        assert!(CompletionNamesCache::load(&path, 5678).is_none());
+        // 无效 mtime：不信任
+        assert!(CompletionNamesCache::load(&path, 0).is_none());
+
+        std::fs::remove_file(&path).ok();
+    }
 }
