@@ -82,8 +82,10 @@ jobs:
           ls /var/lib/apt/lists/ 2>/dev/null | head -10
           echo "== dpkg arch =="
           cat /var/lib/dpkg/arch 2>/dev/null || echo "(none)"
+          echo "== apt mirror file =="
+          cat /etc/apt/apt-mirrors.txt 2>/dev/null || echo "(not found)"
           echo "== pkq cache update (verbose) =="
-          ./target/release/pkq cache update || true
+          RUST_LOG=pkq=debug ./target/release/pkq cache update || true
 
       - name: Run DEB full test matrix
         run: tests/test_deb_all_cases.sh
@@ -127,7 +129,7 @@ jobs:
           echo "== pkq local load (verbose) =="
           RUST_LOG=pkq=debug ./target/release/pkq info bash 2>&1 | head -5 || true
           echo "== pkq cache update (verbose) =="
-          ./target/release/pkq cache update || true
+          RUST_LOG=pkq=debug ./target/release/pkq cache update || true
 
       - name: Run RPM full test matrix
         run: tests/test_rpm_all_cases.sh

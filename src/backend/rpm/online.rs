@@ -71,7 +71,25 @@ impl RpmOnline {
         }
     }
 
-    /// 按 repomd 给出的位置拉取 primary 并流式解压解析（P1-2）
+    /// 按魔数自动识别元数据压缩格式（gzip / zstd）并返回解码器。
+    /// Fedora 44+ 的 repodata 已切换为 zstd（primary.xml.zst），仅支持
+    /// gzip 时会报"invalid gzip header"。
+    fn metadata_decoder(mut file: std::fs::File) -> Result<Box<dyn std::io::Read>> {
+        use std::io::Read;
+        const ZSTD_MAGIC: [u8; 4] = [0x28, 0xb5, 0x2f, 0xfd];
+        let mut magic = [0u8; 4];
+        file.read_exact(&mut magic)?;
+        let head = std::io::Cursor::new(magic).chain(file);
+        if magic == ZSTD_MAGIC {
+            let decoder = ruzstd::decoding::StreamingDecoder::new(head)
+                .map_err(|e| PkgError::ParseError(format!("zstd 解码初始化失败: {}", e)))?;
+            Ok(Box::new(decoder))
+        } else {
+            Ok(Box::new(flate2::read::GzDecoder::new(head)))
+        }
+    }
+
+    /// 按复用元数据解码器拉取 primary 并流式解压解析（P1-2）
     pub fn fetch_primary_packages(
         &self,
         q: RepoQuery<'_>,
@@ -81,8 +99,8 @@ impl RpmOnline {
         let primary_path = self.cache.fetch_index(q.request(&primary_url))?;
 
         let file = std::fs::File::open(&primary_path)?;
-        let gz = flate2::read::GzDecoder::new(file);
-        let buffered = std::io::BufReader::with_capacity(64 * 1024, gz);
+        let decoded = Self::metadata_decoder(file)?;
+        let buffered = std::io::BufReader::with_capacity(64 * 1024, decoded);
         let mut packages = parse_primary_xml_stream(buffered)?;
         // 标注来源仓库（rdeps/来源标签依赖此字段区分已安装/仓库包）
         for p in &mut packages {
@@ -105,8 +123,8 @@ impl RpmOnline {
 
         // 流式解压解析（避免全量解压入内存，P0-1/P1-2）
         let file = std::fs::File::open(&filelists_path)?;
-        let gz = flate2::read::GzDecoder::new(file);
-        let buffered = std::io::BufReader::with_capacity(64 * 1024, gz);
+        let decoded = Self::metadata_decoder(file)?;
+        let buffered = std::io::BufReader::with_capacity(64 * 1024, decoded);
         let map = parse_filelists_xml_stream(buffered);
         Ok((map, ts))
     }
@@ -136,11 +154,10 @@ impl RpmOnline {
 use std::collections::HashMap;
 
 fn decompress_gz(path: &PathBuf) -> Result<String> {
-    use flate2::read::GzDecoder;
     use std::io::Read;
 
     let file = std::fs::File::open(path)?;
-    let mut decoder = GzDecoder::new(file);
+    let mut decoder = RpmOnline::metadata_decoder(file)?;
     let mut content = String::new();
     decoder.read_to_string(&mut content)?;
     Ok(content)

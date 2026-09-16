@@ -413,6 +413,7 @@ impl DebOnline {
             component,
             source.arch
         );
+        tracing::debug!("fetching packages index: {}", packages_url);
 
         let auth = find_auth_for_url(&source.url, &self.auth_entries);
         let (user, pass) = match &auth {
@@ -533,9 +534,15 @@ impl DebOnline {
         if !quiet && total > 0 {
             if stats.all_online() {
                 eprintln!("  源刷新完成：{} 个源全部在线成功", total);
+            } else if stats.fallback > 0 {
+                eprintln!(
+                    "  源刷新完成：在线成功 {} 个，刷新失败 {} 个（部分已回退本地缓存，数据可能过期）",
+                    stats.online,
+                    stats.unsuccessful()
+                );
             } else {
                 eprintln!(
-                    "  源刷新完成：在线成功 {} 个，刷新失败 {} 个（已回退本地缓存，数据可能过期）",
+                    "  源刷新完成：在线成功 {} 个，刷新失败 {} 个（无本地缓存可回退）",
                     stats.online,
                     stats.unsuccessful()
                 );
