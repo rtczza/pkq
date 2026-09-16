@@ -75,7 +75,18 @@ fn detect_archs() -> Vec<String> {
             return archs;
         }
     }
-    vec![std::env::consts::ARCH.to_string()]
+    // 无 /var/lib/dpkg/arch（最小容器/CI 环境）：Rust 架构名映射为
+    // Debian 架构名，否则拼出 binary-x86_64 之类的无效 dists 路径（404）
+    vec![rust_arch_to_deb(std::env::consts::ARCH)]
+}
+
+/// Rust 目标架构名 → Debian 架构名（其余架构同名透传）
+fn rust_arch_to_deb(arch: &str) -> String {
+    match arch {
+        "x86_64" => "amd64".to_string(),
+        "aarch64" => "arm64".to_string(),
+        other => other.to_string(),
+    }
 }
 
 fn parse_sources_content(content: &str, arch: &str) -> Vec<AptSource> {
@@ -797,6 +808,13 @@ fn decompress_lz4_frame(data: &[u8]) -> std::io::Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_rust_arch_to_deb() {
+        assert_eq!(rust_arch_to_deb("x86_64"), "amd64");
+        assert_eq!(rust_arch_to_deb("aarch64"), "arm64");
+        assert_eq!(rust_arch_to_deb("riscv64"), "riscv64");
+    }
 
     #[test]
     fn test_parse_sources() {
