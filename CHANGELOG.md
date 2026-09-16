@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.2.6] - 2026-09-16
 
 ### Added
 
@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   枚举值全量可补；包名位置参数自动补全本地已安装包（附摘要说明），
   `owns` / `search` 的 `/` 开头参数按文件路径补全，`cache clean`
   target 限定为 all|index|repos|contents；安装器自动注册补全（卸载同步清理）
+- 包名补全缓存（dpkg status / rpmdb mtime 失效）：暖态 TAB 延迟
+  ~100ms → ~7ms，缓存文件自动纳入 `cache status` / `cache clean` 统计
 
 ## [0.2.5] - 2026-09-16
 
