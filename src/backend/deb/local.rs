@@ -53,12 +53,38 @@ impl DebLocal {
 
     /// 惰性加载：仅在需要时单独读取指定包的文件列表
     pub fn get_package_files(&self, pkg_name: &str) -> Vec<String> {
-        let list_path = PathBuf::from(format!("/var/lib/dpkg/info/{}.list", pkg_name));
-        if let Ok(content) = std::fs::read_to_string(&list_path) {
-            content.lines().map(|l| l.to_string()).collect()
-        } else {
-            Vec::new()
+        Self::read_package_files(&PathBuf::from("/var/lib/dpkg/info"), pkg_name)
+    }
+
+    /// 从指定的 dpkg info 目录读取（测试或备用路径可注入）。
+    /// 多架构包（Multi-Arch: same）的 info 文件带架构限定符，
+    /// 如 libgnutls-dane0:amd64.list；与 dpkg -L 语义对齐：
+    /// 无未限定文件时合并该包全部架构的列表并去重。
+    fn read_package_files(info_dir: &Path, pkg_name: &str) -> Vec<String> {
+        if let Ok(content) = std::fs::read_to_string(info_dir.join(format!("{}.list", pkg_name))) {
+            return content.lines().map(|l| l.to_string()).collect();
         }
+        let prefix = format!("{}:", pkg_name);
+        let mut files = Vec::new();
+        if let Ok(entries) = std::fs::read_dir(info_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let is_list = path.extension().map(|e| e == "list").unwrap_or(false);
+                let is_pkg = path
+                    .file_stem()
+                    .map(|s| s.to_string_lossy().starts_with(&prefix))
+                    .unwrap_or(false);
+                if !(is_list && is_pkg) {
+                    continue;
+                }
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    files.extend(content.lines().map(|l| l.to_string()));
+                }
+            }
+        }
+        files.sort();
+        files.dedup();
+        files
     }
 
     /// 仅在 owns 命令时流式查找拥有指定文件的包。
@@ -494,6 +520,20 @@ mod tests {
         // 按现状：text 保留 "* " 前缀（trim 仅去空白）
         assert_eq!(entries[0].text, "* fix bug one\n* fix bug two");
         assert_eq!(entries[0].timestamp, 0); // DEB changelog 时间戳当前不解析
+    }
+
+    #[test]
+    fn test_get_package_files_multi_arch() {
+        let dir = std::env::temp_dir().join(format!("pkq_info_test_{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&dir);
+        std::fs::write(dir.join("libc6:amd64.list"), "/a\n/b\n").unwrap();
+        std::fs::write(dir.join("libc6:i386.list"), "/b\n/c\n").unwrap();
+        // 非 .list 文件与不同包名前缀不应纳入
+        std::fs::write(dir.join("libc6:amd64.md5sums"), "junk").unwrap();
+        std::fs::write(dir.join("libc.list"), "/d\n").unwrap();
+        let files = DebLocal::read_package_files(&dir, "libc6");
+        assert_eq!(files, vec!["/a", "/b", "/c"]);
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     const STATUS_FIXTURE: &str = "\
