@@ -77,7 +77,7 @@ memmap2 = "0.9"
 memchr = "2"
 
 # Base64 encoding (replace manual implementation)
-base64 = "0.22"
+base64 = "0.23"
 
 # Structured logging
 tracing = "0.1"
